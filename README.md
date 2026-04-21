@@ -6,4 +6,4 @@ A Flask web application for vertebrae segmentation and CVMI stage classification
 
 1. **Install dependencies:**
    ```bash
-   pip install -r requirements.txt
+   pip install -r requirements.txt# cvmi_final
