@@ -388,7 +388,7 @@ def analyze_image(input_image):
         
         print("🧠 Classifying CVMI stage...")
         # CVMI Classification
-        resized_cls = cv2.resize(cropped_roi, (512, 512))
+        resized_cls = cv2.resize(image_bgr, (512, 512))
         cvmi_results = cls_model.predict(source=resized_cls, verbose=False)
         probs = cvmi_results[0].probs
         
@@ -451,60 +451,122 @@ def analyze_image(input_image):
 
 def create_interface():
     """Create the Gradio interface"""
-    
-    with gr.Blocks(title="CVMI Analysis System") as demo:
-        gr.Markdown("# 🏥 CVMI Analysis System")
-        gr.Markdown("### Cervical Vertebral Maturation Index Analysis using Deep Learning")
-        
-        with gr.Column():
-            gr.Markdown("Upload a spine X-ray image for automated CVMI stage prediction and vertebrae segmentation.")
-            
-            input_image = gr.Image(
-                label="Upload X-Ray Image",
-                type="numpy"
-            )
-            
-            analyze_btn = gr.Button("🔍 Analyze Image", variant="primary")
-        
-        gr.Markdown("---")
-        
+
+    with gr.Blocks(
+        title="CVMI Clinical Workstation",
+        theme=gr.themes.Soft(
+            primary_hue="blue",
+            neutral_hue="slate",
+            radius_size="sm",
+            spacing_size="sm",
+        ),
+        css="""
+        .gradio-container {
+            max-width: 1180px !important;
+            margin: 0 auto !important;
+            background: #f8fafc;
+        }
+        .clinical-header {
+            padding: 16px 0 8px;
+            border-bottom: 1px solid #d8dee8;
+            margin-bottom: 16px;
+        }
+        .clinical-header h1 {
+            margin: 0;
+            font-size: 1.65rem;
+            line-height: 1.25;
+            color: #12324a;
+        }
+        .clinical-header p {
+            margin: 6px 0 0;
+            color: #536273;
+            font-size: 0.98rem;
+        }
+        .clinical-note {
+            border-left: 4px solid #2563eb;
+            background: #eff6ff;
+            padding: 10px 12px;
+            color: #1e3a5f;
+            margin-bottom: 14px;
+        }
+        .clinical-section h3 {
+            font-size: 1rem;
+            color: #12324a;
+            margin-bottom: 8px;
+        }
+        footer {
+            display: none !important;
+        }
+        """
+    ) as demo:
+        gr.HTML("""
+        <div class="clinical-header">
+            <h1>CVMI Clinical Workstation</h1>
+            <p>Cervical vertebrae segmentation and CVMI stage support for clinical review.</p>
+        </div>
+        """)
+        gr.HTML("""
+        <div class="clinical-note">
+            Upload a cephalometric X-ray, run analysis, and review the segmented vertebrae,
+            CVMI stage chart, and patient-reference comparison.
+        </div>
+        """)
+
         with gr.Row():
-            with gr.Column():
-                gr.Markdown("**Segmented Vertebrae**")
-                output_segmentation = gr.Image(label="Segmentation Result")
-            
-            with gr.Column():
-                gr.Markdown("**CVMI Stage Chart**")
-                output_chart = gr.Image(label="CVMI Chart")
-        
-        output_comparison = gr.Image(label="Patient vs Reference Comparison")
-        output_result = gr.Markdown()
-        
-        # Connect the analyze button to the analysis function
+            with gr.Column(scale=1, min_width=320):
+                gr.Markdown("### Patient Image", elem_classes=["clinical-section"])
+
+                input_image = gr.Image(
+                    label="Cephalometric X-ray",
+                    type="numpy",
+                    height=360
+                )
+
+                with gr.Row():
+                    analyze_btn = gr.Button("Analyze Image", variant="primary")
+                    refresh_btn = gr.Button("Refresh / Reset", variant="secondary")
+
+                output_result = gr.Markdown(label="Clinical Summary")
+
+            with gr.Column(scale=2, min_width=520):
+                gr.Markdown("### Review Outputs", elem_classes=["clinical-section"])
+                output_comparison = gr.Image(label="Patient vs Reference Comparison", height=360)
+
+                with gr.Row():
+                    output_segmentation = gr.Image(label="Segmented Vertebrae", height=320)
+                    output_chart = gr.Image(label="CVMI Stage Chart", height=320)
+
+        refresh_btn.click(
+            lambda: (None, None, None, None, ""),
+            inputs=None,
+            outputs=[input_image, output_segmentation, output_chart, output_comparison, output_result]
+        )
+
         analyze_btn.click(
             analyze_image,
             inputs=[input_image],
             outputs=[output_segmentation, output_chart, output_comparison, output_result]
         )
-        
-        # Add information section
-        with gr.Accordion("ℹ️ About CVMI Stages"):
+
+        with gr.Accordion("CVMI stage reference", open=False):
             gr.Markdown("""
-### CVMI Stages Overview
+CS1: Flat lower borders of C2, C3, and C4; trapezoid vertebral bodies.
 
-**Stage 1 (CS1):** Lower borders of C2, C3, C4 are flat. Vertebral bodies are trapezoid in shape. (Age: 6-8 years)
+CS2: Concavities at C2 and C3; C4 remains flat.
 
-**Stage 2 (CS2):** Concavities in lower borders of C2 and C3. C4 still flat. (Age: 8-10 years)
+CS3: Concavities at C2, C3, and C4; C3 and C4 are rectangular.
 
-**Stage 3 (CS3):** Concavities in lower borders of C2, C3, C4. C3 and C4 are rectangular. (Age: 10-12 years)
+CS4: Distinct concavities; C3 and C4 are nearly square.
 
-**Stage 4 (CS4):** Distinct concavities in all vertebrae. C3 and C4 nearly square. (Age: 12-14 years)
+CS5: More accentuated concavities; vertebrae are rectangular.
 
-**Stage 5 (CS5):** More accentuated concavities. All vertebrae are rectangular. (Age: 14-16 years)
-
-**Stage 6 (CS6):** Deep concavities, fully developed vertebrae. Growth complete. (Age: 16-18 years)
+CS6: Deep concavities with fully developed vertebrae.
             """)
-    
+
+        gr.Markdown(
+            "Clinical use note: review AI outputs alongside the original patient record and clinician judgement."
+        )
+
     return demo
 
 # Create and launch the interface
@@ -525,11 +587,9 @@ if __name__ == "__main__":
     demo = create_interface()
     print("🚀 Launching Gradio interface...")
     demo.launch(
-        server_name="127.0.0.1",
-        server_port=7860,
+        server_name=os.environ.get("GRADIO_SERVER_NAME", "0.0.0.0"),
+        server_port=int(os.environ.get("PORT", os.environ.get("GRADIO_SERVER_PORT", 7860))),
         share=False,
         show_error=True,
-        theme=gr.themes.Soft(),
         debug=True
     )
-    
